@@ -1,36 +1,50 @@
 # -*- coding: utf-8 -*-
 
+
 """
 Created on Mon May  6 10:45:55 2019
 
 @author: hp
 """
 
+from flask import Flask, request, jsonify
+from sklearn.externals import joblib
+import traceback
+import pandas as pd
+import numpy as np
+from flask import request
+from datetime import datetime
+
+from flask_cors import CORS, cross_origin
+from wtforms import TextField,TextAreaField, SubmitField
+from wtforms.validators import Required
+ 
+import sys
+import os
+import datetime
+import calendar
+
+import pickle
+import json
+
 ########################################################################
 ######### CHAT BOT VARIABLES
 ########################################################################
 
-# Import Modules
-
-from flask import Flask, request, jsonify
-from datetime import datetime
-
-import sys
-import os
-import json
-
 import mysql.connector
 import datetime
 import time
-
 from dateutil import relativedelta
+from flask import Flask, jsonify, request
+import os
+import traceback
+import json
 import random
 import requests
-
 import urllib.request
 from bs4 import BeautifulSoup
 
-# Define Messages
+# Define the messages
 
 all_okay_message = """
 All Okay.
@@ -46,7 +60,9 @@ welcome_message = """
 私の名前はミライです。
 私は、あなた専属の美容コンシェルジュです。
 サロンの予約受付は私が行います。
-さらに、サロンのこと、美容のこと、
+さらに、
+サロンのこと、
+美容のこと、
 わからないことがあれば何でも解決策を考えます。
 知りたい情報はいち早くお伝えいたします。
 あなたの人生が楽しく、そして快適に過ごせるように・・・
@@ -64,81 +80,6 @@ is_nickname_message_1 = """
 
 is_nickname_message_2 = """
 ニックネームはありますか？
-"""
-
-ask_nickname_message = """
-ニックネームは何ですか？
-"""
-
-ask_birthday_message_1 = """
-いいですね。ありがとうございました{0}。
-今後も仲良くしてください。
-"""
-
-ask_birthday_message_2 = """
-あなたの誕生日に特別なメッセージをお送りできたらと思います。
-お誕生日を教えていただけますか {0}？
-"""
-
-ask_birthday_without_nickname_message = """
-あなたの誕生日に特別なメッセージをお送りできたらと思います。
-お誕生日を教えていただけますか？
-"""
-
-
-ibis_message_1 = """
-そうなんですね。あなたは{0}ですね。
-
-今日の{1}の運勢は....
-
-{2}
-"""
-
-ibis_message_2 = """
-あなたは星座占いを信じますか？
-"""
-
-is_daily_horoscope_message = """
-いいですね！星座占いが毎日配信されるとしたら、
-興味はありますか？						
-"""						
-						
-iss_nbis_message_1 = """
-わかりました。
-"""
-
-iss_ndh_message_1 = """
-わかりました。
-"""
-
-iss_ydh_message_1 = """
-わかりました。
-ではあなたのために毎日の運勢を配信しますね！
-"""
-
-is_specific_salon_message_2 = """
-ありがとうございます。ちなみにお気に入りでよく利用するサロンはありますか？							
-"""							
-							
-ask_specific_salon_message = """
-おぉいいですね！
-あなたのお気に入りのサロンを教えてください。
-"""
-
-ask_salon_again_message = """
-そうでしたか...もう一度、入力してもらえますか？
-"""
-
-use_recommended_salon_message = """
-すみません。名前の入力のエラーかそのサロンにMiraiが導入されていないので、
-あなたのサロンを見つけることができませんでした。もし良ければおすすめのサロンをご紹介しましょうか？
-"""
-
-confirm_specific_salon_message_1 = """
-ありがとうございます。
-"""
-confirm_specific_salon_message_2 = """
-あなたのお気に入りのサロンはここですか？"
 """
 
 is_confirm_message = """
@@ -181,6 +122,9 @@ wrong_cust_sub_service_message = """
 表示されたオプションから有効なメニュー項目を入力してください。
 """
 
+ask_nickname_message = """
+ニックネームは何ですか？
+"""
 
 ask_alt_time_message = """
 何時がいいですか？ 
@@ -220,6 +164,63 @@ chat_more_message_2 = """
 今、何か仕事をしていますか？
 """
 
+ask_birthday_message_1 = """
+いいですね。ありがとうございます{0}。
+今後も仲良くしてください。
+"""
+
+ask_birthday_message_2 = """
+あなたの誕生日に特別なメッセージをお送りできたらと思います。
+お誕生日を教えていただけますか {0}？
+"""
+
+ask_birthday_without_nickname_message = """
+あなたの誕生日に特別なメッセージをお送りできたらと思います。
+お誕生日を教えていただけますか？
+"""
+
+#ibis_message_1 = """
+#そうなんですね。あなたは{0}座ですね。
+
+#今日の{1}座の運勢は....
+
+#{2}
+#"""
+
+ibis_message_1 = """
+そうなんですね。あなたは{0}ですね。
+
+今日の{1}の運勢は....
+
+{2}
+"""
+
+ask_specific_salon_message = """
+おぉいいですね！あなたのお気に入りのサロンを教えてください。
+"""
+
+iss_nbis_message_1 = ""
+
+iss_ydh_message_1 = """
+わかりました。ではあなたのために毎日の運勢を配信しますね！
+"""
+
+iss_ndh_message_1 = """
+わかりました。
+"""
+
+is_specific_salon_message_2 = """
+あなたのお気に入りで頻繁に利用するサロンはありますか？
+"""
+
+is_daily_horoscope_message = """
+もしあなたの星座の運勢が毎日知れるとしたら、
+興味がありますか？
+"""
+
+ibis_message_2 = """
+あなたは星座占いを信じますか？
+"""
 
 is_time_for_more_message = """
 そうなんですね。
@@ -255,6 +256,12 @@ find_salon_message = """
 おぉ、ではあなたにとってベストなサロンを探していきましょう。
 """
 
+confirm_specific_salon_message_1 = """
+あなたのサロンを見つけようとしましょう。
+"""
+confirm_specific_salon_message_2 = """
+これはあなたのお気に入りのサロンですか？
+"""
 
 #CHANGE_TEL
 ask_phone_message_2 = """
@@ -455,7 +462,6 @@ is_reservation_now_message_1 = """
 わかりました。
 お客様の期待に答えられるように、努めてまいります。
 """
-
 is_reservation_now_message_2 = """
 次回予約をお取りしましょうか？
 """
@@ -498,7 +504,8 @@ wrong_date_message = """
 正しい形式で正しい日付を入力してください。
 例：2019年6月21日の場合は、次のいずれかを入力します。
 
-06月21日
+1）2019年06月21日
+2）2019-06-21
 """
 
 wrong_time_message = """
@@ -506,17 +513,18 @@ wrong_time_message = """
 例：午後1時に13:00と入力
 """
 
-def create_sql_conn():
-    mydb = mysql.connector.connect(
-                                   host="34.85.64.241",
-                                   user="jts",
-                                   passwd="Jts45678@?",
-                                   database="jtsboard_jts",
-                                   buffered=True
-                                   )
-    #mycursor = mydb.cursor(buffered=True)
-    mycursor = mydb.cursor()
-    return mydb,mycursor
+
+mydb = mysql.connector.connect(
+                               host="34.85.64.241",
+                               user="jts",
+                               passwd="Jts5678?",
+                               database="jtsboard_new",
+                               buffered=True
+                               )
+
+#mycursor = mydb.cursor(buffered=True)
+mycursor = mydb.cursor()
+
 
 slot_list = ["00:00:00","00:30:00","01:00:00","01:30:00","02:00:00","02:30:00","03:00:00","03:30:00",
              "04:00:00","04:30:00","05:00:00","05:30:00","06:00:00","06:30:00","07:00:00","07:30:00",
@@ -747,15 +755,8 @@ def get_reservations_for_customer(cust_id):
     """ 
 
     select_tuple = (cust_id,today_date,current_time,today_date)
-    mydb,mycursor = create_sql_conn()
     mycursor.execute(select_sql,select_tuple)
     myresult_list = mycursor.fetchall()
-    #SQL
-    mycursor.close()
-    mydb.close()
-     
- 
- 
   
     if len(myresult_list) == 0:
         is_rsv = 0 
@@ -907,11 +908,8 @@ def insert_into_ratings_table(customer_id,user_id,rating):
 
     insert_tuple = (customer_id,user_id,rating,now_str)
 
-    mydb,mycursor = create_sql_conn()
     mycursor.execute(insert_sql,insert_tuple)
     mydb.commit()
-    mycursor.close()
-    mydb.close()
 
 def get_cid_from_ip(ip):
 
@@ -920,11 +918,8 @@ def get_cid_from_ip(ip):
     
     select_sql = """select cust_responses from sessions where ip = %s"""
     select_tuple = (ip,)
-    mydb,mycursor = create_sql_conn()
     mycursor.execute(select_sql,select_tuple)
     myresult_list = mycursor.fetchall()
-    mycursor.close()
-    mydb.close()
 
     if len(myresult_list) != 0:
         first_tuple = myresult_list[0]
@@ -942,11 +937,8 @@ def get_cid_from_ip(ip):
         select_sql = """select id from customers where name = %s and tel = %s"""
         select_tuple = (name,phone)
 
-        mydb,mycursor = create_sql_conn()
         mycursor.execute(select_sql,select_tuple)
         myresult_list = mycursor.fetchall()
-        mycursor.close()
-        mydb.close()
         
         if len(myresult_list) == 0:
             existing_status = 0
@@ -977,7 +969,7 @@ def find_todays_horoscope(sign):
     #    print("inside try block")
     #    love_url = "https://www.vogue.co.jp/horoscope/daily/" + year + "/" + month + "/" + day + "/" + sign 
     #    print("1")
-    #    love_response = urllib.request.urlopen(love_url, timeout=10)
+    #    love_response = urllib.request.urlopen(love_url, timeout=5)
     #    print("2")
     #    love_html = love_response.read()
     #    print("3")
@@ -990,15 +982,14 @@ def find_todays_horoscope(sign):
     #except:
     #    print("inside except")
     #    love_text = "気になる人がいるなら時間をかけて、少しずつお互いの気持ちの温度を高めていこう。友情が愛情に変わる日も近いかも。"
-
-
-    love_text1 = "年齢が近い人からの誘いに乗るとよさそう。仕事をスマートにこなしているあなたに、異性の注目も集まりそう。" 
-    love_text2 = "家族ぐるみの交際を強要され、戸惑ってしまいそう。将来を考えられない相手なら、残念だけど早めにお断りするのが正解かも。"
-    love_text3 = "諦めかけていた恋に希望が見えてきそう。勇気を出してアタックを。好きな人と両思いになれるかも！"
-
-    love_arr = [love_text1,love_text2,love_text3]
-    love_text = random.choice(love_arr)
-
+    
+    love_text1 = "気になる人がいるなら時間をかけて、少しずつお互いの気持ちの温度を高めていこう。友情が愛情に変わる日も近いかも。"
+    love_text2 = "年齢が近い人からの誘いに乗るとよさそう。仕事をスマートにこなしているあなたに、異性の注目も集まりそう。" 
+    love_text3 = "フリーの人は、好みの相手と一緒にスポーツを楽しむと自然に仲良くなれそう。まずは温かい友情関係を築いて行きましょう。" 
+    
+    love_arr = [love_text1,love_text2,love_text3] 
+    love_text = random.choice(love_arr) 
+    
     return love_text
 
 
@@ -1214,13 +1205,10 @@ def insert_into_chats_db(user_id,ip,name,is_nickname,nickname,birthday,is_time_f
     
     insert_tuple = (user_id,ip,name,is_nickname,nickname,birthday,is_time_for_more,phone,color,type_of_salon,is_reservation_now,res_date,res_time,service_id,emp_id,is_confirm,last_state)
     
-    mydb,mycursor = create_sql_conn()
     mycursor.execute(sql,insert_tuple)
     
     mydb.commit()
 
-    mycursor.close()
-    mydb.close()
 
 
 def insert_into_session_db(ip,STATE,return_list_of_dicts,return_dict,cust_responses):
@@ -1231,30 +1219,19 @@ def insert_into_session_db(ip,STATE,return_list_of_dicts,return_dict,cust_respon
 
     select_sql = "select * from sessions where ip = %s"
     select_tuple = (ip,)
-    mydb,mycursor = create_sql_conn()
     mycursor.execute(select_sql,select_tuple)
     myresult_list = mycursor.fetchall()
     
-    mycursor.close()
-    mydb.close()
     if len(myresult_list) != 0:
         delete_sql = "delete from sessions where ip = %s"
         delete_tuple = (ip,)
-        mydb,mycursor = create_sql_conn()
         mycursor.execute(delete_sql,delete_tuple)
         mydb.commit()
-        mycursor.close()
-        mydb.close()
-    
+
     insert_sql = "insert into sessions(ip,STATE,return_list_of_dicts,return_dict,cust_responses) values(%s,%s,%s,%s,%s)"
     insert_tuple = (ip,STATE,return_list_of_dicts,return_dict,cust_responses)
-    mydb,mycursor = create_sql_conn()
     mycursor.execute(insert_sql,insert_tuple)
     mydb.commit()
-    mycursor.close()
-    mydb.close()
-
-
 
 
 def update_session_db(ip,STATE,return_list_of_dicts,return_dict,cust_responses):
@@ -1276,11 +1253,8 @@ def update_session_db(ip,STATE,return_list_of_dicts,return_dict,cust_responses):
     """
     
     insert_tuple = (STATE,return_list_of_dicts,return_dict,cust_responses,cust_name,ip)
-    mydb,mycursor = create_sql_conn()
     mycursor.execute(sql,insert_tuple)
     mydb.commit()
-    mycursor.close()
-    mydb.close()
 
 
 def generate_reservation_number():
@@ -1292,12 +1266,8 @@ def generate_reservation_number():
     num = str(random.randint(low,high))
     new_code = "M" + al + num 
     sql = """select reservation_number from reservations"""
-    mydb,mycursor = create_sql_conn()
     mycursor.execute(sql)
     myresult_list = mycursor.fetchall()
-    mycursor.close()
-    mydb.close()
-    
     found = 0 
     for code_tuple in myresult_list:
         exist_code_ba = code_tuple[0]
@@ -1317,11 +1287,8 @@ def delete_from_reservations_table(r_id):
 
     select_sql = """select * from reservations where id = %s"""
     select_tuple = (r_id,)
-    mydb,mycursor = create_sql_conn()
     mycursor.execute(select_sql,select_tuple)
     myresult_list = mycursor.fetchall()
-    mycursor.close()
-    mydb.close()
         
     if len(myresult_list) == 0:
         r_id_status = 0 
@@ -1331,11 +1298,8 @@ def delete_from_reservations_table(r_id):
         update_sql = """update reservations set status = 4 where id = %s"""
         update_tuple = (r_id,)
         
-        mydb,mycursor = create_sql_conn()
         mycursor.execute(update_sql,update_tuple)
         mydb.commit()
-        mycursor.close()
-        mydb.close()
 
     return r_id_status
 
@@ -1366,21 +1330,15 @@ def insert_into_reservations_table(u_id,c_id,s_id,ss_id,e_id,s_date,e_date,s_tim
         now_str,now_str
     )
 
-    mydb,mycursor = create_sql_conn()
     mycursor.execute(insert_sql,insert_tuple)
     mydb.commit()
-    mycursor.close()
-    mydb.close()
+
     print("yahaan hoon")
         
     select_sql1 = """select id from reservations where reservation_number = %s"""
     select_tuple1 = (r_num,)
-    
-    mydb,mycursor = create_sql_conn()
     mycursor.execute(select_sql1,select_tuple1)
     myresult_list = mycursor.fetchall()
-    mycursor.close()
-    mydb.close()
 
     print("yahaan hoon")
     tuple0 = myresult_list[0]
@@ -1397,12 +1355,8 @@ def check_existing_customer(name,email):
     select_sql = """select id,user_id from customers where name = %s and email = %s"""
     select_tuple = (name,email)
 
-
-    mydb,mycursor = create_sql_conn()
     mycursor.execute(select_sql,select_tuple)
     myresult_list = mycursor.fetchall()
-    mycursor.close()
-    mydb.close()
     
     if len(myresult_list) == 0:
         existing_status = 0
@@ -1446,11 +1400,8 @@ def insert_into_customers_table(c_name,c_kana,c_dob,c_tel,user_id,is_daily_horos
     #select_sql = """select * from customers where user_id = %s and name = %s and email = %s"""
     select_tuple = (user_id,c_name,c_tel)
 
-    mydb,mycursor = create_sql_conn()
     mycursor.execute(select_sql,select_tuple)
     myresult_list = mycursor.fetchall()
-    mycursor.close()
-    mydb.close()
 
     
     if len(myresult_list) == 0:
@@ -1476,23 +1427,17 @@ def insert_into_customers_table(c_name,c_kana,c_dob,c_tel,user_id,is_daily_horos
             cust_zodiac_eng,device_id,device_type
         )
 
-        mydb,mycursor = create_sql_conn()
         mycursor.execute(insert_sql,insert_tuple)
+        
         mydb.commit() 
-        mycursor.close()
-        mydb.close()
 
         # CHANGE_TEL
         select_sql1 = """select * from customers where user_id = %s and name = %s and tel = %s"""
         #select_sql1 = """select * from customers where user_id = %s and name = %s and email = %s"""
         
         select_tuple1 = (user_id,c_name,c_tel)
-        
-        mydb,mycursor = create_sql_conn()
         mycursor.execute(select_sql1,select_tuple1)
         myresult_list = mycursor.fetchall()
-        mycursor.close()
-        mydb.close()
     
         tuple0 = myresult_list[0]
         c_id = tuple0[0]
@@ -1543,14 +1488,9 @@ def find_often_service_state(cust_responses):
 def find_employee_name(user_id):
     select_sql = """select id,name from employees where user_id = %s and is_technician = 1 order by service_id """
     select_tuple = (user_id,) 
-    
-    mydb,mycursor = create_sql_conn()
     mycursor.execute(select_sql,select_tuple)
+
     myresult_list = mycursor.fetchall()
-    mycursor.close()
-    mydb.close()
-    
-    
     emp_name_dict = dict()
 
     for emp_tuple in myresult_list:
@@ -1573,11 +1513,9 @@ def get_services(user_id):
 
     select_tuple = (user_id,user_id)
     
-    mydb,mycursor = create_sql_conn()
     mycursor.execute(select_sql,select_tuple)
+    
     myresult_list  = mycursor.fetchall()
-    mycursor.close()
-    mydb.close()
     
     s_dict = dict()
     menu_int = 1 
@@ -1605,11 +1543,8 @@ def get_super_services(service_id,user_id):
     sql = """select id,name from sub_services where user_id = %s and status = 1 and service_id = %s and parent_id = %s"""
     select_tuple = (user_id,service_id,0)
     
-    mydb,mycursor = create_sql_conn()
     mycursor.execute(sql,select_tuple)
     myresult_list  = mycursor.fetchall()
-    mycursor.close()
-    mydb.close()
     print("myresult_list") 
     print(myresult_list) 
     sup_serv_dict = dict()
@@ -1640,13 +1575,8 @@ def get_sub_services(service_id,user_id):
     sql = """select id,name,duration,price from sub_services where user_id = %s and status = 1 and service_id = %s"""
     select_tuple = (user_id,service_id)
     
-    mydb,mycursor = create_sql_conn()
     mycursor.execute(sql,select_tuple)
     myresult_list  = mycursor.fetchall()
-    
-    mycursor.close()
-    mydb.close()
-    
     print("myresult_list") 
     print(myresult_list) 
     ss_dict = dict()
@@ -1683,12 +1613,9 @@ def find_employees_for_service(service_id,user_id):
     
     select_sql = """select service_id,id from employees where user_id = %s and is_technician = 1 and status = 1 order by service_id"""
     select_tuple = (user_id,)
-    mydb,mycursor = create_sql_conn()
     mycursor.execute(select_sql,select_tuple)
 
     myresult_list = mycursor.fetchall()
-    mycursor.close()
-    mydb.close()
 
     print("myresult_list")
     print(myresult_list)
@@ -1736,12 +1663,9 @@ def check_new_availability(date_time_obj,employee_list,time_duration,user_id):
         """
 
         select_tuple = (user_id, date_format, employee)
-        mydb,mycursor = create_sql_conn()
         mycursor.execute(select_sql,select_tuple)
 
         appointments = mycursor.fetchall()
-        mycursor.close()
-        mydb.close()
         for appointment in appointments:
             print("--- appointment ---")
             #print(appointment) 
@@ -1831,12 +1755,9 @@ def get_employee_schedule_for_date(date_time_obj,employee_list):
         """
 
         select_tuple = (date_format, employee)
-        mydb,mycursor = create_sql_conn()
         mycursor.execute(select_sql,select_tuple)
 
         appointments = mycursor.fetchall()
-        mycursor.close()
-        mydb.close()
 
         for appointment in appointments:
             #print("--- appointment ---")
@@ -2055,9 +1976,6 @@ def ask_alt_date_fun(cust_responses):
 def ask_specific_salon_fun():
     return ask_specific_salon_message
 
-def ask_salon_again_fun():
-    return ask_salon_again_message
-
 def is_specific_salon_fun(cust_responses):
     option_list = [ 
     {"key":"1", "value":"はい"}, 
@@ -2095,7 +2013,7 @@ def is_believe_in_signs_fun(cust_responses):
     #はい/ 私にとって良いことなら信じる :D/いいえ
     option_list = [ 
     {"key":"1", "value":"はい"}, 
-    {"key":"2","value": "私にとって良いことなら信じる"},
+    {"key":"2","value": "私にとって良いことなら信じる :D"},
     {"key":"3","value": "いいえ"} 
     ]
     return ibis_message_1.format(zodiac,zodiac,todays_horoscope),ibis_message_2,option_list
@@ -2133,14 +2051,6 @@ def is_time_for_more_fun():
     #return is_time_for_more_message,is_time_for_more_options
     return is_time_for_more_message_1,is_time_for_more_message_2,is_time_for_more_options
 
-def use_recommended_salon_fun():
-
-    option_list = [ 
-    {"key":"1", "value":"はい"}, 
-    {"key":"2","value": "いいえ"} 
-    ]
-    return use_recommended_salon_message, option_list
-
 def confirm_specific_salon_fun():
 
     salon1_staff_list = [
@@ -2163,7 +2073,7 @@ def confirm_specific_salon_fun():
         "id": "102", 
         "name": "マジェスティックビューティー",
         "star": "5",
-        "location":"愛知県名古屋市中村区名駅南3丁目3-21 BIANCASA水主町2階",
+        "location":"Nagoya-shi, Aichi-ken, Japan",
         "latitude":"35.159884",
         "longitude":"136.892322",
         "open_time":"10:00",
@@ -2173,7 +2083,6 @@ def confirm_specific_salon_fun():
         "description": "名古屋市で自爪に優しいラグジュアリーネイルサロン「マジェスティックビューティー」",
         "image": "https://api.jtsboard.com/uploads/my_shop/original/8f078d545fecf1ee3e75dd30470f1b13.jpg",
         "image_list": salon1_image_list,
-        "zip_code": "450-0003"
     }
 
     salon_gallery_list = [ 
@@ -2231,7 +2140,7 @@ def find_salon_fun():
         "id": "102", 
         "name": "マジェスティックビューティー",
         "star": "5",
-        "location":"愛知県名古屋市中村区名駅南3丁目3-21 BIANCASA水主町2階",
+        "location":"Nagoya-shi, Aichi-ken, Japan",
         "latitude":"35.159884",
         "longitude":"136.892322",
         "open_time":"10:00",
@@ -2241,7 +2150,6 @@ def find_salon_fun():
         "description": "名古屋市で自爪に優しいラグジュアリーネイルサロン「マジェスティックビューティー」",
         "image": "https://api.jtsboard.com/uploads/my_shop/original/8f078d545fecf1ee3e75dd30470f1b13.jpg",
         "image_list": salon1_image_list,
-        "zip_code": "450-0003"
     }
     
     salon2 = {
@@ -2258,7 +2166,6 @@ def find_salon_fun():
         "description": "名古屋市で自爪に優しいラグジュアリーネイルサロン「マジェスティックビューティー」",
         "image": "https://api.jtsboard.com/uploads/my_shop/original/d47e653ac53f64669fbafc9dbd685eb1.jpg",
         "image_list": salon2_image_list,
-        "zip_code": "302-020"
 
     }
 
@@ -2275,9 +2182,6 @@ def ask_phone(cust_responses):
     print("\n\npppppppppppppppppppp\n\n")
     print("Inside ask phone") 
     print("Is Specific Salon") 
-    
-    # UNCOMMENT THIS BLOCK ONCE APP GETS APPROVED 
-    """
     print(cust_responses["is_specific_salon"])
     print("Salon Found") 
     #print(cust_responses["salon_found"])
@@ -2293,8 +2197,6 @@ def ask_phone(cust_responses):
         return ask_phone_message_1,ask_phone_message_2
     #if cust_responses["is_specific_salon"] == "no": 
     #    return ask_phone_message_no_specific_salon_1,ask_phone_message_2
-    """
-    return ask_phone_message_1,ask_phone_message_2
 
 def ask_hobbies_fun(color_idea):
     #return ask_hobbies_message
@@ -3143,14 +3045,1385 @@ def calc_date_time(date_obj,time_obj):
 ##########################################################################
 
 
+# Preparing the Classifier
+#monthwise
+
+cur_dir = os.path.dirname('__file__')
+
+#total sales
+#monthwise
+regressor = pickle.load(open(os.path.join(cur_dir,
+    'pkl_objects/modelmonths.pkl'), 'rb'))
+model_colm = pickle.load(open(os.path.join(cur_dir,
+    'pkl_objects/model_columnsm.pkl'),'rb')) 
+
+#daywise
+clf = pickle.load(open(os.path.join(cur_dir,
+    'pkl_objects/modeldays.pkl'), 'rb'))
+model_cold = pickle.load(open(os.path.join(cur_dir,
+    'pkl_objects/model_columnsd.pkl'),'rb')) 
+
+#weekwise
+clfweek = pickle.load(open(os.path.join(cur_dir,
+    'pkl_objects/modelweeks.pkl'), 'rb'))
+model_colw = pickle.load(open(os.path.join(cur_dir,
+    'pkl_objects/model_columnsw.pkl'),'rb')) 
+
+
+
+#customer visits
+#daywise
+clfvd = pickle.load(open(os.path.join(cur_dir,
+    'pkl_objects/modelvdays.pkl'), 'rb'))
+model_colvd = pickle.load(open(os.path.join(cur_dir,
+    'pkl_objects/model_columnsvd.pkl'),'rb')) 
+
+
+#monthwise
+clfvm = pickle.load(open(os.path.join(cur_dir,
+    'pkl_objects/modelvmonths.pkl'), 'rb'))
+model_colvm = pickle.load(open(os.path.join(cur_dir,
+    'pkl_objects/model_columnsvm.pkl'),'rb')) 
+
+#weekwise
+clfvw = pickle.load(open(os.path.join(cur_dir,
+    'pkl_objects/modelvweeks.pkl'), 'rb'))
+model_colvw = pickle.load(open(os.path.join(cur_dir,
+    'pkl_objects/model_columnsvw.pkl'),'rb')) 
+
+
+#expenses monthwise
+regressor_exp = pickle.load(open(os.path.join(cur_dir,
+                'pkl_objects/modelexm.pkl'), 'rb'))
+model_colexp = pickle.load(open(os.path.join(cur_dir,
+                'pkl_objects/model_columnsexm.pkl'),'rb'))
+
+
+# Your API definition
+app = Flask(__name__)
+#app.secret_key = os.urandom(24)
+
+
+
+#for localhost
+cors = CORS(app, resources={r"/": {"origins": "http://localhost:5000"}})
+
+#daywise
+@app.route('/day', methods=['POST'])
+@cross_origin(origin='localhost',headers=['Content- Type','Authorization'])
+
+#for gcp cloud
+#cors = CORS(app, resources={r"/": {"origins": "https://jts-board.appspot.com/"}})
+
+#@app.route('/', methods=['POST'])
+#@cross_origin(origin='*',headers=['Content- Type','Authorization'])
+
+def predict():
+#print(request)
+    if clf:
+        try:
+            print("LLLLLLLLLLLLLLL")
+            jsond = request.json
+            queryd = pd.get_dummies(pd.DataFrame(jsond))
+            queryd = queryd.reindex(columns=model_cold, fill_value=0)
+            
+            predictiond = list(clf.predict(queryd).astype("int64"))
+            print(predictiond)
+            
+
+
+            print(queryd)
+            copy_queryd = queryd.copy(deep=True)
+            copy_queryd.columns = ['day','month','year']
+
+            date_time = pd.to_datetime(copy_queryd[['day', 'month', 'year']])
+            #date_time.columns = ['timestamp']
+
+            date_time_df=pd.DataFrame(date_time, columns=["timestamp"])
+            date_time_df['day'] = date_time_df['timestamp'].dt.dayofweek
+            dnum=pd.DataFrame(date_time_df['day'])
+            dname = dnum['day'].apply(lambda x: calendar.day_abbr[x])
+            #df['weekday'] = df['Timestamp'].apply(lambda x: x.weekday())
+            
+            print("PPPPPPPPPPPPPP")
+            #print(copy_queryd)
+            #print(date_time_df)
+            #print(dname)
+            print("JJJJJJJJJJJJJJ")
+
+            #print(queryd['m'])
+            #mname = queryd['d'].apply(lambda x: calendar.day_abbr[x])
+            #print(mname)
+            #print(queryxid1)
+
+            #mname=pd.DataFrame(queryd['d'])
+            #mname=pd.DataFrame(mname)
+
+            predictiond=pd.DataFrame(predictiond, columns=["sales"])
+            predictiond['sales'] = predictiond['sales'].apply(lambda x: x/1000)
+
+            print(predictiond)
+            con=pd.concat([dname,predictiond], axis=1)##################
+            print(con)
+            df=pd.DataFrame(con)###############
+
+
+            df.set_index('day')['sales'].to_dict()
+            print(df)
+
+            count = df.shape[0]
+            #print(count)
+
+            #print("LLLLLLLLLLOOO")
+            #print(df)
+            #print("KKKKKKKKKKKKK")
+
+
+            days = df['day'].tolist()
+            sales = df['sales'].tolist()
+
+            #print("LLLLLLLLLLOOO")
+            #print(months[1])
+            #print(sales[1])
+            #print("KKKKKKKKKKKKK")
+
+            list_of_dicts = []
+            D={}
+
+            #add a key and setup for a sub-dictionary
+
+            for i in range(count):
+                D[i] = {}
+                D[i]['x']=days[i]
+                D[i]['value']=sales[i]
+                list_of_dicts.append(D[i])
+
+
+            #print(list_of_dicts)
+
+            # convert into JSON:
+            json_dict = json.dumps(list_of_dicts)
+
+            # the result is a JSON string:
+            print("LLLLLLLLLLOOO")
+            print(json_dict)
+            print("KKKKKKKKKKKKK")
+
+
+
+            a = "cheese"
+            return json_dict
+            #return jsonify({'prediction': str(predictiond)})
+
+        except:
+
+            return jsonify({'trace': traceback.format_exc()})
+    else:
+        print ('Train the model first')
+        return ('No model here to use')
+
+#monthwise
+@app.route('/month', methods=['POST'])
+@cross_origin(origin='localhost',headers=['Content- Type','Authorization'])
+
+
+def predmonth():
+    #print(request)
+    if regressor:
+        try:
+            json1= request.json
+            query1 = pd.get_dummies(pd.DataFrame(json1))
+            query1 = query1.reindex(columns=model_colm, fill_value=0)
+            #print(query1)
+            copy_query1 = query1.copy(deep=True)
+            copy_query1['month'] = copy_query1['month'].astype(str) + '月'
+
+
+            print("JJJJJJJJJJJJJJJJJJ")
+            print(query1)
+            print("SSSSSSSSSSSSSSSSSS")
+            
+            
+            #mname = query1['m'].apply(lambda x: calendar.month_abbr[x])
+            mname = copy_query1['month']
+            #print(mname)
+            #print(query1)
+            
+            mname=pd.DataFrame(mname)
+            print(mname)
+            
+            prediction1 = (regressor.predict(query1).astype('int64'))
+            #print(prediction1)
+            #print(prediction)
+            prediction1=pd.DataFrame(prediction1, columns=["sales"])
+            
+            prediction1['sales'] = prediction1['sales'].apply(lambda x: x/1000)
+
+            con=pd.concat([mname,prediction1], axis=1)
+            print("IIIIIIIIIII")
+            print(con)
+            print("NNNNNNNNNN")
+            df=pd.DataFrame(con)
+            #df.set_index('m')['0'].to_dict()
+            df.set_index('month')['sales'].to_dict()
+
+            count = df.shape[0]
+            #print(count)
+
+            #print("LLLLLLLLLLOOO")
+            #print(df)
+            #print("KKKKKKKKKKKKK")
+
+
+            months = df['month'].tolist()
+            sales = df['sales'].tolist()
+
+            print("PPPPPPPPPP")
+            print(months)
+            print(sales)
+            print("KKKKKKKKKKKKK")
+
+            list_of_dicts = []
+            D={}
+
+            #add a key and setup for a sub-dictionary
+
+            for i in range(count):
+                D[i] = {}
+                D[i]['x']=months[i]
+                D[i]['value']=sales[i]
+                list_of_dicts.append(D[i])
+
+            print("BBBBBBBBBBBBBB")
+            print(list_of_dicts)
+            print("LLLLLLLLLLLLLL")
+
+            # convert into JSON:
+            json_dict = json.dumps(list_of_dicts,ensure_ascii=False)
+
+            # the result is a JSON string:
+            print("LLLLLLLLLLOOO")
+            print(json_dict)
+            print("KKKKKKKKKKKKK")
+
+
+            #dict(zip(df.m, df.s))
+            
+            #from collections import defaultdict
+            #mydict = defaultdict(list)
+            #for k, v in zip(df.m.values,df.s.values):
+            #    mydict[k].append(v)
+            #    mydict[k]="x"
+            #    mydict[v]="v"
+
+            
+            #print("LLLLLLLLLLOOO")
+            #print(mydict)
+            #print(k)
+            #print(v)
+            #print("LLLLLLLLLL")
+            
+            #df.groupby('name')[['value1','value2']].apply(lambda g: g.values.tolist()).to_dict()
+
+            
+            
+            #return jsonify({'prediction': str(prediction1)})
+            #t = "cheese"
+            #return(t)
+            return(json_dict)
+
+        except:
+
+            return jsonify({'trace': traceback.format_exc()})
+    else:
+        print ('Train the model first')
+        return ('No model here to use')
+
+#weekwise
+@app.route('/week', methods=['POST'])
+@cross_origin(origin='localhost',headers=['Content- Type','Authorization'])
+
+
+def predweek():
+    #print(request)
+    if clfweek:
+        try:
+            print("WWWWWWWWWWWWWWWWWWWWWWWWW")
+            jsonw= request.json
+            queryw = pd.get_dummies(pd.DataFrame(jsonw))
+            queryw = queryw.reindex(columns=model_colw, fill_value=0)
+
+
+            print(queryw)
+            print("OOOOOOOOOOOOOOOOO")
+            #print(query1['m'])
+            #mname = queryw['w'].apply(lambda x: calendar.day_abbr[x])########
+            #print(mname)
+            #print(query1)
+            mname=pd.DataFrame(queryw['week'])#########
+            print(mname)
+            print("WWWWWWWWWWWWWWWWWWWWWw")
+
+            
+            predictionw = (clfweek.predict(queryw).astype("int64"))
+            
+            #print("PPPPPPPPPPPPPP")
+            #print(predictionw)
+            #print("JJJJJJJJJJJJJJ")
+
+            #print(prediction1)
+            #print(prediction)
+            predictionw=pd.DataFrame(predictionw, columns=["sales"])##########
+            print(predictionw)
+            predictionw['sales'] = predictionw['sales'].apply(lambda x: x/1000)
+
+            con=pd.concat([mname,predictionw], axis=1)##################
+            print(con)
+            df=pd.DataFrame(con)################
+
+
+            df.set_index('week')['sales'].to_dict()
+            #print(df)
+
+
+
+            count = df.shape[0]
+            #print(count)
+
+            #print("LLLLLLLLLLOOO")
+            #print(df)
+            #print("KKKKKKKKKKKKK")
+
+
+            weeks = df['week'].tolist()
+            sales = df['sales'].tolist()
+
+            #print("LLLLLLLLLLOOO")
+            #print(months[1])
+            #print(sales[1])
+            #print("KKKKKKKKKKKKK")
+
+            list_of_dicts = []
+            D={}
+
+            #add a key and setup for a sub-dictionary
+
+            for i in range(count):
+                D[i] = {}
+                D[i]['x']=weeks[i]
+                D[i]['value']=sales[i]
+                list_of_dicts.append(D[i])
+
+
+            #print(list_of_dicts)
+
+            # convert into JSON:
+            json_dict = json.dumps(list_of_dicts)
+
+            # the result is a JSON string:
+            print("LLLLLLLLLLOOO")
+            print(json_dict)
+            print("KKKKKKKKKKKKK")
+
+            return json_dict
+            #return jsonify({'prediction weekwise': str(predictionw).splitlines()})
+
+        except:
+
+            return jsonify({'trace': traceback.format_exc()})
+    else:
+        print ('Train the model first')
+        return ('No model here to use')
+
+
+#customer visits  
+#daywise
+@app.route('/vdays', methods=['POST'])
+@cross_origin(origin='localhost',headers=['Content- Type','Authorization'])
+
+#for gcp cloud
+#cors = CORS(app, resources={r"/": {"origins": "https://jts-board.appspot.com/"}})
+
+#@app.route('/', methods=['POST'])
+#@cross_origin(origin='*',headers=['Content- Type','Authorization'])
+
+def predictvdays():
+    #print(request)
+    if clfvd:
+        try:
+           # print("LLLLLLLLLLLLLLL")
+            jsond = request.json
+            queryd = pd.get_dummies(pd.DataFrame(jsond))
+            queryd = queryd.reindex(columns=model_colvd, fill_value=0)
+            
+            predictiond = list(clfvd.predict(queryd))
+            #print(predictiond)
+            
+
+
+            #print(queryd)
+            copy_queryd = queryd.copy(deep=True)
+            copy_queryd.columns = ['day','month','year']
+
+            date_time = pd.to_datetime(copy_queryd[['day', 'month', 'year']])
+            #date_time.columns = ['timestamp']
+
+            date_time_df=pd.DataFrame(date_time, columns=["timestamp"])
+            date_time_df['day'] = date_time_df['timestamp'].dt.dayofweek
+            dnum=pd.DataFrame(date_time_df['day'])
+            dname = dnum['day'].apply(lambda x: calendar.day_abbr[x])
+            #df['weekday'] = df['Timestamp'].apply(lambda x: x.weekday())
+            
+            #print("PPPPPPPPPPPPPP")
+            #print(copy_queryd)
+            #print(date_time_df)
+            #print(dname)
+            #print("JJJJJJJJJJJJJJ")
+
+            #print(queryd['m'])
+            #mname = queryd['d'].apply(lambda x: calendar.day_abbr[x])
+            #print(mname)
+            #print(queryxid1)
+
+            #mname=pd.DataFrame(queryd['d'])
+            #mname=pd.DataFrame(mname)
+
+            predictiond=pd.DataFrame(predictiond, columns=["visits"])
+            #predictiond[''] = predictiond['s'].apply(lambda x: x/1000)
+
+            #print(predictiond)
+            con=pd.concat([dname,predictiond], axis=1)##################
+            #print(con)
+            df=pd.DataFrame(con)###############
+
+
+            df.set_index('day')['visits'].to_dict()
+            #print(df)
+
+            count = df.shape[0]
+            #print(count)
+
+            #print("LLLLLLLLLLOOO")
+            #print(df)
+            #print("KKKKKKKKKKKKK")
+
+
+            days = df['day'].tolist()
+            sales = df['visits'].tolist()
+
+            #print("LLLLLLLLLLOOO")
+            #print(months[1])
+            #print(sales[1])
+            #print("KKKKKKKKKKKKK")
+
+            list_of_dicts = []
+            D={}
+
+            #add a key and setup for a sub-dictionary
+
+            for i in range(count):
+                D[i] = {}
+                D[i]['x']=days[i]
+                D[i]['value']=sales[i]
+                list_of_dicts.append(D[i])
+
+
+            #print(list_of_dicts)
+
+            # convert into JSON:
+            json_dict = json.dumps(list_of_dicts)
+
+            # the result is a JSON string:
+            """
+            print("LLLLLLLLLLOOO")
+            print(json_dict)
+            print("KKKKKKKKKKKKK")
+            """
+
+
+
+
+
+
+
+
+
+
+
+            a = "cheese"
+            return json_dict
+            #return jsonify({'prediction': str(predictiond)})
+
+        except:
+
+            return jsonify({'trace': traceback.format_exc()})
+    else:
+        print ('Train the model first')
+        return ('No model here to use')
+
+
+
+#monthwise
+
+#monthwise
+@app.route('/vmonths', methods=['POST'])
+@cross_origin(origin='localhost',headers=['Content- Type','Authorization'])
+
+
+def predvmonths():
+    #print(request)
+    if clfvm:
+        try:
+            json1= request.json
+            query1 = pd.get_dummies(pd.DataFrame(json1))
+            query1 = query1.reindex(columns=model_colvm, fill_value=0)
+            #print(query1)
+            copy_query1 = query1.copy(deep=True)
+            copy_query1['month'] = copy_query1['month'].astype(str) + '月'
+            
+
+            """print("JJJJJJJJJJJJJJJJJJ")
+            print(query1)
+            print("SSSSSSSSSSSSSSSSSS")
+            """
+            
+            #mname = query1['m'].apply(lambda x: calendar.month_abbr[x])
+            mname = copy_query1['month']
+            #print(mname)
+            #print(query1)
+            
+            mname=pd.DataFrame(mname)
+            #print(mname)
+            
+            prediction1 = (clfvm.predict(query1))
+            #print(prediction1)
+            #print(prediction)
+            prediction1=pd.DataFrame(prediction1, columns=["visits"])
+            
+            #prediction1['visits'] = prediction1['s'].apply(lambda x: x/1000)
+
+            con=pd.concat([mname,prediction1], axis=1)
+            """print("IIIIIIIIIII")
+            print(con)
+            print("NNNNNNNNNN")"""
+            df=pd.DataFrame(con)
+            #df.set_index('m')['0'].to_dict()
+            df.set_index('month')['visits'].to_dict()
+
+            count = df.shape[0]
+            #print(count)
+
+            #print("LLLLLLLLLLOOO")
+            #print(df)
+            #print("KKKKKKKKKKKKK")
+
+
+            months = df['month'].tolist()
+            sales = df['visits'].tolist()
+
+            """print("PPPPPPPPPP")
+            print(months)
+            print(sales)
+            print("KKKKKKKKKKKKK")"""
+
+            list_of_dicts = []
+            D={}
+
+            #add a key and setup for a sub-dictionary
+
+            for i in range(count):
+                D[i] = {}
+                D[i]['x']=months[i]
+                D[i]['value']=sales[i]
+                list_of_dicts.append(D[i])
+
+            """print("BBBBBBBBBBBBBB")
+            print(list_of_dicts)
+            print("LLLLLLLLLLLLLL")"""
+
+            # convert into JSON:
+            json_dict = json.dumps(list_of_dicts,ensure_ascii=False)
+
+            # the result is a JSON string:
+            """print("LLLLLLLLLLOOO")
+            print(json_dict)
+            print("KKKKKKKKKKKKK")"""
+
+
+            #dict(zip(df.m, df.s))
+            
+            #from collections import defaultdict
+            #mydict = defaultdict(list)
+            #for k, v in zip(df.m.values,df.s.values):
+            #    mydict[k].append(v)
+            #    mydict[k]="x"
+            #    mydict[v]="v"
+
+            
+            #print("LLLLLLLLLLOOO")
+            #print(mydict)
+            #print(k)
+            #print(v)
+            #print("LLLLLLLLLL")
+            
+            #df.groupby('name')[['value1','value2']].apply(lambda g: g.values.tolist()).to_dict()
+
+            
+            
+            #return jsonify({'prediction': str(prediction1)})
+            #t = "cheese"
+            #return(t)
+            return(json_dict)
+    
+        except:
+
+            return jsonify({'trace': traceback.format_exc()})
+    else:
+        print ('Train the model first')
+        return ('No model here to use')
+
+
+
+#weekwise
+@app.route('/vweeks', methods=['POST'])
+@cross_origin(origin='localhost',headers=['Content- Type','Authorization'])
+
+
+def predvweeks():
+    #print(request)
+    if clfvw:
+        try:
+            print("WWWWWWWWWWWWWWWWWWWWWWWWW")
+            jsonw= request.json
+            queryw = pd.get_dummies(pd.DataFrame(jsonw))
+            queryw = queryw.reindex(columns=model_colvw, fill_value=0)
+
+
+            print(queryw)
+            print("OOOOOOOOOOOOOOOOO")
+            #print(query1['m'])
+            #mname = queryw['w'].apply(lambda x: calendar.day_abbr[x])########
+            #print(mname)
+            #print(query1)
+            mname=pd.DataFrame(queryw['week'])#########
+            print(mname)
+            print("WWWWWWWWWWWWWWWWWWWWWw")
+
+            
+            predictionw = (clfvw.predict(queryw).astype("int64"))
+            
+            #print("PPPPPPPPPPPPPP")
+            #print(predictionw)
+            #print("JJJJJJJJJJJJJJ")
+
+            #print(prediction1)
+            #print(prediction)
+            predictionw=pd.DataFrame(predictionw, columns=["visits"])##########
+            print(predictionw)
+            predictionw['visits'] = predictionw['visits'].apply(lambda x: x/1000)
+
+            con=pd.concat([mname,predictionw], axis=1)##################
+            print(con)
+            df=pd.DataFrame(con)################
+
+
+            df.set_index('week')['visits'].to_dict()
+            #print(df)
+
+
+
+            count = df.shape[0]
+            #print(count)
+
+            #print("LLLLLLLLLLOOO")
+            #print(df)
+            #print("KKKKKKKKKKKKK")
+
+
+            weeks = df['week'].tolist()
+            sales = df['visits'].tolist()
+
+            #print("LLLLLLLLLLOOO")
+            #print(months[1])
+            #print(sales[1])
+            #print("KKKKKKKKKKKKK")
+
+            list_of_dicts = []
+            D={}
+
+            #add a key and setup for a sub-dictionary
+
+            for i in range(count):
+                D[i] = {}
+                D[i]['x']=weeks[i]
+                D[i]['value']=sales[i]
+                list_of_dicts.append(D[i])
+
+
+            #print(list_of_dicts)
+
+            # convert into JSON:
+            json_dict = json.dumps(list_of_dicts)
+
+            # the result is a JSON string:
+            print("LLLLLLLLLLOOO")
+            print(json_dict)
+            print("KKKKKKKKKKKKK")
+
+            return json_dict
+            #return jsonify({'prediction weekwise': str(predictionw).splitlines()})
+
+        except:
+
+            return jsonify({'trace': traceback.format_exc()})
+    else:
+        print ('Train the model first')
+        return ('No model here to use')
+
+
+#monthwise expenses
+
+@app.route('/monthexp', methods=['POST'])
+@cross_origin(origin='localhost',headers=['Content- Type','Authorization'])
+
+
+def predmonthexp():
+    #print(request)
+    if regressor_exp:
+        try:
+            print("HELLLO")
+            json1= request.json
+            length = len(json1)
+            
+            query1 = pd.get_dummies(pd.DataFrame(json1))
+            query1 = query1.reindex(columns=model_colexp, fill_value=0)
+            #print(query1)
+            copy_query1 = query1.copy(deep=True)
+            copy_query1['month'] = copy_query1['month'].astype(str) + '月'
+            
+            
+            print("JJJJJJJJJJJJJJJJJJ")
+            print(query1)
+            print("SSSSSSSSSSSSSSSSSS")
+            
+            
+            #mname = query1['m'].apply(lambda x: calendar.month_abbr[x])
+            mname = copy_query1['month']
+            #print(mname)
+
+            
+            mname=pd.DataFrame(mname)
+            print(mname)
+            
+            prediction1 = (regressor_exp.predict(query1).astype('int64'))
+
+            print("JJJJJJJJJJ")
+            print(prediction1)
+            print("KkKKKKKK")
+            #print(prediction)
+            prediction1=pd.DataFrame(prediction1, columns=["expenses"])
+            
+            #prediction1['expenses'] = prediction1['expenses'].apply(lambda x: x/1000)
+            
+            con=pd.concat([mname,prediction1], axis=1)
+            print("IIIIIIIIIII")
+            print(con)
+            print("NNNNNNNNNN")
+            df=pd.DataFrame(con)
+            #df.set_index('m')['0'].to_dict()
+            df.set_index('month')['expenses'].to_dict()
+            
+            count = df.shape[0]
+            #print(count)
+            
+            #print("LLLLLLLLLLOOO")
+            #print(df)
+            #print("KKKKKKKKKKKKK")
+            
+            
+            #months = df['month'].tolist()
+            expenses = df['expenses'].tolist()
+            
+            
+            ###################################################################
+            
+            
+            
+            query2 = pd.get_dummies(pd.DataFrame(json1))
+            query2 = query2.reindex(columns=model_colm, fill_value=0)
+            
+            #print("JJJJJJJJJJJJJJJJJJ")
+            #print(query2)
+            #print("SSSSSSSSSSSSSSSSSS")
+            
+
+            copy_query2 = query2.copy(deep=True)
+            copy_query2['month'] = copy_query2['month'].astype(str) + '月'
+            
+            
+            #print("JJJJJJJJJJJJJJJJJJ")
+            #print(query2)
+            #print("SSSSSSSSSSSSSSSSSS")
+            
+            
+            #mname = query1['m'].apply(lambda x: calendar.month_abbr[x])
+            mname = copy_query2['month']
+            mname=pd.DataFrame(mname)
+            
+            
+            prediction2 = (regressor.predict(query2).astype('int64'))
+            prediction2=pd.DataFrame(prediction2, columns=["sales"])
+            
+            #prediction2['sales'] = prediction2['sales'].apply(lambda x: x/1000)
+            
+            con=pd.concat([mname,prediction2], axis=1)
+            print("IIIIIIIIIII")
+            print(con)
+            print("NNNNNNNNNN")
+            df=pd.DataFrame(con)
+            #df.set_index('m')['0'].to_dict()
+            df.set_index('month')['sales'].to_dict()
+            
+            count = df.shape[0]
+            #print(count)
+            months = df['month'].tolist() ########################
+            sales = df['sales'].tolist() ##########################
+            
+            sales_npar = np.asarray(sales)
+            expenses_npar = np.asarray(expenses)
+            profit_npar = sales_npar - expenses_npar
+            profit = profit_npar.tolist()
+            
+            #profit = sales - expenses
+            print("NNNNNNNNNNNNN")
+            print(sales)
+            print(expenses)
+            print(profit)
+            print("KKKKKKKKKKKKK")
+            
+            
+            
+            
+            ################################################################
+            
+            join = list(zip(months,sales,expenses,profit))  ###################
+            join_json_string = json.dumps(join,ensure_ascii=False)
+            
+
+            
+            '''
+            print("PPPPPPPPPP")
+            print(months)
+            print(sales)
+            print("KKKKKKKKKKKKK")
+            
+            list_of_dicts = []
+            D={}
+            
+            #add a key and setup for a sub-dictionary
+            
+            for i in range(count):
+                D[i] = {}
+                D[i]['x']=months[i]
+                D[i]['value']=sales[i]
+                list_of_dicts.append(D[i])
+
+            print("BBBBBBBBBBBBBB")
+            print(list_of_dicts)
+            print("LLLLLLLLLLLLLL")
+            
+            # convert into JSON:
+            json_dict = json.dumps(list_of_dicts,ensure_ascii=False)
+            
+            # the result is a JSON string:
+            print("LLLLLLLLLLOOO")
+            print(json_dict)
+            print("KKKKKKKKKKKKK")
+
+            '''
+            #t = "cheese"
+            #return(t)
+            #return(json_dict)
+            return(join_json_string)
+
+        except:
+        
+            return jsonify({'trace': traceback.format_exc()})
+    else:
+        print ('Train the model first')
+        return ('No model here to use')
+
+#monthwise donut
+@app.route('/monthexpdonut', methods=['POST'])
+@cross_origin(origin='localhost',headers=['Content- Type','Authorization'])
+
+def predmonth_expdonut():
+    #print(request)
+    if regressor_exp:
+        try:
+            print("HELLLO")
+            json1= request.json
+            length = len(json1)
+            
+            query1 = pd.get_dummies(pd.DataFrame(json1))
+            query1 = query1.reindex(columns=model_colexp, fill_value=0)
+            #print(query1)
+            copy_query1 = query1.copy(deep=True)
+            copy_query1['month'] = copy_query1['month'].astype(str) + '月'
+            
+            
+            print("JJJJJJJJJJJJJJJJJJ")
+            print(query1)
+            print("SSSSSSSSSSSSSSSSSS")
+            
+            
+            #mname = query1['m'].apply(lambda x: calendar.month_abbr[x])
+            mname = copy_query1['month']
+            #print(mname)
+            
+            
+            mname=pd.DataFrame(mname)
+            print(mname)
+            
+            prediction1 = (regressor_exp.predict(query1).astype('int64'))
+            
+            print("JJJJJJJJJJ")
+            print(prediction1)
+            print("KkKKKKKK")
+            #print(prediction)
+            prediction1=pd.DataFrame(prediction1, columns=["expenses"])
+            
+            #prediction1['expenses'] = prediction1['expenses'].apply(lambda x: x/1000)
+            
+            con=pd.concat([mname,prediction1], axis=1)
+            print("IIIIIIIIIII")
+            print(con)
+            print("NNNNNNNNNN")
+            df=pd.DataFrame(con)
+            #df.set_index('m')['0'].to_dict()
+            df.set_index('month')['expenses'].to_dict()
+            
+            count = df.shape[0]
+            #print(count)
+            
+            #print("LLLLLLLLLLOOO")
+            #print(df)
+            #print("KKKKKKKKKKKKK")
+            
+            
+            #months = df['month'].tolist()
+            expenses = df['expenses'].tolist()
+            
+            
+            ###################################################################
+            
+            
+            
+            query2 = pd.get_dummies(pd.DataFrame(json1))
+            query2 = query2.reindex(columns=model_colm, fill_value=0)
+            
+            #print("JJJJJJJJJJJJJJJJJJ")
+            #print(query2)
+            #print("SSSSSSSSSSSSSSSSSS")
+            
+            
+            copy_query2 = query2.copy(deep=True)
+            copy_query2['month'] = copy_query2['month'].astype(str) + '月'
+            
+            
+            #print("JJJJJJJJJJJJJJJJJJ")
+            #print(query2)
+            #print("SSSSSSSSSSSSSSSSSS")
+            
+            
+            #mname = query1['m'].apply(lambda x: calendar.month_abbr[x])
+            mname = copy_query2['month']
+            mname=pd.DataFrame(mname)
+            
+            
+            prediction2 = (regressor.predict(query2).astype('int64'))
+            prediction2=pd.DataFrame(prediction2, columns=["sales"])
+            
+            #prediction2['sales'] = prediction2['sales'].apply(lambda x: x/1000)
+            
+            con=pd.concat([mname,prediction2], axis=1)
+            print("IIIIIIIIIII")
+            print(con)
+            print("NNNNNNNNNN")
+            df=pd.DataFrame(con)
+            #df.set_index('m')['0'].to_dict()
+            df.set_index('month')['sales'].to_dict()
+            
+            count = df.shape[0]
+            #print(count)
+            months = df['month'].tolist() ########################
+            sales = df['sales'].tolist() ##########################
+            
+            sales_npar = np.asarray(sales)
+            expenses_npar = np.asarray(expenses)
+            profit_npar = sales_npar - expenses_npar
+            profit = profit_npar.tolist()
+            
+            list_of_dicts = []
+            D = {}
+            D['x']="利益"
+            D['value']=profit[0]
+            list_of_dicts.append(D)
+            
+            E = {}
+            E['x']="費用"
+            E['value']=expenses[0]
+            list_of_dicts.append(E)
+            
+            #list_of_dicts.append(D[i])
+            
+            #list_output = [['Expenses', expenses[0]],['Saving', profit[0]]]
+            #profit = sales - expenses
+            print("NNNNNNNNNNNNN")
+            #print(sales[0])
+            print(expenses[0])
+            print(profit[0])
+            print(list_of_dicts)
+            print("KKKKKKKKKKKKK")
+            
+            
+            ################################################################
+            
+            #out_json_string = json.dumps(list_output,ensure_ascii=False)
+            out_json_string = json.dumps(list_of_dicts,ensure_ascii=False)
+            
+            
+            #t = "cheese"
+            #return(t)
+            #return(json_dict)
+            return(out_json_string)
+
+        except:
+    
+            return jsonify({'trace': traceback.format_exc()})
+    else:
+        print ('Train the model first')
+        return ('No model here to use')
+
+#monthwise column
+@app.route('/monthexpcolumn', methods=['POST'])
+@cross_origin(origin='localhost',headers=['Content- Type','Authorization'])
+
+def predmonth_expcolumn():
+    #print(request)
+    if regressor_exp:
+        try:
+            print("HELLLO")
+            json1= request.json
+            length = len(json1)
+            
+            query1 = pd.get_dummies(pd.DataFrame(json1))
+            query1 = query1.reindex(columns=model_colexp, fill_value=0)
+            #print(query1)
+            copy_query1 = query1.copy(deep=True)
+            copy_query1['month'] = copy_query1['month'].astype(str) + '月'
+            
+            
+            print("JJJJJJJJJJJJJJJJJJ")
+            print(query1)
+            print("SSSSSSSSSSSSSSSSSS")
+            
+            
+            #mname = query1['m'].apply(lambda x: calendar.month_abbr[x])
+            mname = copy_query1['month']
+            #print(mname)
+            
+            
+            mname=pd.DataFrame(mname)
+            print(mname)
+            
+            prediction1 = (regressor_exp.predict(query1).astype('int64'))
+            
+            print("JJJJJJJJJJ")
+            print(prediction1)
+            print("KkKKKKKK")
+            #print(prediction)
+            prediction1=pd.DataFrame(prediction1, columns=["expenses"])
+            
+            #prediction1['expenses'] = prediction1['expenses'].apply(lambda x: x/1000)
+            
+            con=pd.concat([mname,prediction1], axis=1)
+            print("IIIIIIIIIII")
+            print(con)
+            print("NNNNNNNNNN")
+            df=pd.DataFrame(con)
+            #df.set_index('m')['0'].to_dict()
+            df.set_index('month')['expenses'].to_dict()
+            
+            count = df.shape[0]
+            #print(count)
+            
+            #print("LLLLLLLLLLOOO")
+            #print(df)
+            #print("KKKKKKKKKKKKK")
+            
+            
+            #months = df['month'].tolist()
+            expenses = df['expenses'].tolist()
+            
+            
+            ###################################################################
+            
+            
+            
+            query2 = pd.get_dummies(pd.DataFrame(json1))
+            query2 = query2.reindex(columns=model_colm, fill_value=0)
+            
+            #print("JJJJJJJJJJJJJJJJJJ")
+            #print(query2)
+            #print("SSSSSSSSSSSSSSSSSS")
+            
+            
+            copy_query2 = query2.copy(deep=True)
+            copy_query2['month'] = copy_query2['month'].astype(str) + '月'
+            
+            
+            #print("JJJJJJJJJJJJJJJJJJ")
+            #print(query2)
+            #print("SSSSSSSSSSSSSSSSSS")
+            
+            
+            #mname = query1['m'].apply(lambda x: calendar.month_abbr[x])
+            mname = copy_query2['month']
+            mname=pd.DataFrame(mname)
+            
+            
+            prediction2 = (regressor.predict(query2).astype('int64'))
+            prediction2=pd.DataFrame(prediction2, columns=["sales"])
+            
+            #prediction2['sales'] = prediction2['sales'].apply(lambda x: x/1000)
+            
+            con=pd.concat([mname,prediction2], axis=1)
+            print("IIIIIIIIIII")
+            print(con)
+            print("NNNNNNNNNN")
+            df=pd.DataFrame(con)
+            #df.set_index('m')['0'].to_dict()
+            df.set_index('month')['sales'].to_dict()
+            
+            count = df.shape[0]
+            #print(count)
+            months = df['month'].tolist() ########################
+            sales = df['sales'].tolist() ##########################
+            
+            sales_npar = np.asarray(sales)
+            expenses_npar = np.asarray(expenses)
+            profit_npar = sales_npar - expenses_npar
+            profit = profit_npar.tolist()
+            
+            #list_of_dicts = []
+            #D = {}
+            #D['x']="Saving"
+            #D['value']=profit[0]
+            #list_of_dicts.append(D)
+            
+            #E = {}
+            #E['x']="Expenses"
+            #E['value']=expenses[0]
+            #list_of_dicts.append(E)
+            
+            list_output = [['売上', sales[0]],['費用', expenses[0]]]
+
+            print("NNNNNNNNNNNNN")
+            #print(sales[0])
+            print(expenses[0])
+            print(profit[0])
+            print("KKKKKKKKKKKKK")
+            
+            
+            ################################################################
+            
+            out_json_string = json.dumps(list_output,ensure_ascii=False)
+            #out_json_string = json.dumps(list_of_dicts,ensure_ascii=Fa1lse)
+            
+            
+            #t = "cheese"
+            #return(t)
+            #return(json_dict)
+            return(out_json_string)
+
+        except:
+        
+            return jsonify({'trace': traceback.format_exc()})
+    else:
+        print ('Train the model first')
+        return ('No model here to use')
+
+
+
+
+#monthwise
+@app.route('/monthv', methods=['POST'])
+@cross_origin(origin='localhost',headers=['Content- Type','Authorization'])
+
+
+def predmonv():
+    #print(request)
+    if clfvm:
+        try:
+            print("HELLLO")
+            json1= request.json
+            length = len(json1)
+            
+            
+            
+            query1 = pd.get_dummies(pd.DataFrame(json1))
+            query1 = query1.reindex(columns=model_colvm, fill_value=0)
+            
+            #mname = query1['month'].apply(lambda x: calendar.month_abbr[x])
+            
+            #print(query1)
+            copy_query1 = query1.copy(deep=True)
+            copy_query1['month'] = copy_query1['month'].astype(str) + '月'
+            
+            
+            #print("JJJJJJJJJJJJJJJJJJ")
+            #print(query1)
+            #print("SSSSSSSSSSSSSSSSSS")
+            
+            
+            #mname = query1['m'].apply(lambda x: calendar.month_abbr[x])
+            mname = copy_query1['month']
+            #print(mname)
+            #print(query1)
+            
+            mname=pd.DataFrame(mname)
+            print(mname)
+            
+            prediction1 = (clfvm.predict(query1).astype('int64'))
+
+            print("JJJJJJJJJJ")
+            print(prediction1)
+            print("KkKKKKKK")
+            #print(prediction)
+            prediction1=pd.DataFrame(prediction1, columns=["visits"])
+            
+            #prediction1['expenses'] = prediction1['expenses'].apply(lambda x: x/1000)
+            
+            con=pd.concat([mname,prediction1], axis=1)
+            print("IIIIIIIIIII")
+            print(con)
+            print("NNNNNNNNNN")
+            df=pd.DataFrame(con)
+            #df.set_index('m')['0'].to_dict()
+            df.set_index('month')['visits'].to_dict()
+            
+            count = df.shape[0]
+            #print(count)
+            
+            #print("LLLLLLLLLLOOO")
+            #print(df)
+            #print("KKKKKKKKKKKKK")
+            
+            
+            months = df['month'].tolist()
+            visits = df['visits'].tolist()
+            
+            
+            ###################################################################
+            
+            """
+            
+            query2 = pd.get_dummies(pd.DataFrame(json1))
+            query2 = query2.reindex(columns=model_colm, fill_value=0)
+            
+            #print("JJJJJJJJJJJJJJJJJJ")
+            #print(query2)
+            #print("SSSSSSSSSSSSSSSSSS")
+            
+            
+            mname = query2['month'].apply(lambda x: calendar.month_abbr[x])
+            mname=pd.DataFrame(mname)
+            
+            
+            prediction2 = (regressor.predict(query2).astype('int64'))
+            prediction2=pd.DataFrame(prediction2, columns=["sales"])
+            
+            #prediction2['sales'] = prediction2['sales'].apply(lambda x: x/1000)
+            
+            con=pd.concat([mname,prediction2], axis=1)
+            print("IIIIIIIIIII")
+            print(con)
+            print("NNNNNNNNNN")
+            df=pd.DataFrame(con)
+            #df.set_index('m')['0'].to_dict()
+            df.set_index('month')['sales'].to_dict()
+            
+            count = df.shape[0]
+            #print(count)
+            months = df['month'].tolist() ########################
+            sales = df['sales'].tolist() ##########################
+            
+            
+            
+            
+            ################################################################
+            """
+            
+            join = list(zip(months, visits))  ###################
+            
+            join_json_string = json.dumps(join,ensure_ascii=False)
+            
+
+            
+            '''
+            print("PPPPPPPPPP")
+            print(months)
+            print(sales)
+            print("KKKKKKKKKKKKK")
+            
+            list_of_dicts = []
+            D={}
+            
+            #add a key and setup for a sub-dictionary
+            
+            for i in range(count):
+                D[i] = {}
+                D[i]['x']=months[i]
+                D[i]['value']=sales[i]
+                list_of_dicts.append(D[i])
+
+            print("BBBBBBBBBBBBBB")
+            print(list_of_dicts)
+            print("LLLLLLLLLLLLLL")
+            
+            # convert into JSON:
+            json_dict = json.dumps(list_of_dicts,ensure_ascii=False)
+            
+            # the result is a JSON string:
+            print("LLLLLLLLLLOOO")
+            print(json_dict)
+            print("KKKKKKKKKKKKK")
+
+            '''
+            
+            
+            #t = "cheese"
+            #return(t)
+            #return(json_dict)
+            return(join_json_string)
+
+        except:
+        
+            return jsonify({'trace': traceback.format_exc()})
+    else:
+        print ('Train the model first')
+        return ('No model here to use')
+
 #####################################################################
 #####  CHAT BOT API
 #####################################################################
 
 # PROGRAM STARTS HERE
-app = Flask(__name__)
+
 
 @app.route('/existingcustomer', methods=['POST'])
+@cross_origin(origin='localhost',headers=['Content- Type','Authorization'])
 
 def existingcustomer():
     print("inside login session")
@@ -3161,7 +4434,7 @@ def existingcustomer():
 
     if "device_id" in json_input:
         device_id = json_input['device_id']
-        device_id = device_id.replace("'","")
+        device_id = device_id.replace("'", "")
         device_id = device_id.replace('"','')
     else: 
         device_id = "DUMMY"
@@ -3200,6 +4473,7 @@ def existingcustomer():
 
    
 @app.route('/review', methods=['POST'])
+@cross_origin(origin='localhost',headers=['Content- Type','Authorization'])
 
 def review():
     print("inside review")
@@ -3232,6 +4506,7 @@ def review():
 
 """   
 @app.route('/newcustomer', methods=['POST'])
+@cross_origin(origin='localhost',headers=['Content- Type','Authorization'])
 def newcustomer():
     print("inside login session")
     json_input = request.json
@@ -3250,6 +4525,8 @@ def newcustomer():
 """ 
    
 @app.route('/dropsession', methods=['POST'])
+@cross_origin(origin='localhost',headers=['Content- Type','Authorization'])
+
 
 def dropsession():
     print("inside drop session")
@@ -3259,17 +4536,15 @@ def dropsession():
 
     sql = "DELETE FROM sessions WHERE ip = %s"
     delete_tuple = (ip,)
-    
-    mydb,mycursor = create_sql_conn()
     mycursor.execute(sql,delete_tuple)
     mydb.commit()
-    mycursor.close()
-    mydb.close()
-
     #DELETE FROM table_name WHERE condition;
     return "dropped\n"
 
+
+
 @app.route('/chat', methods=['POST'])
+@cross_origin(origin='localhost',headers=['Content- Type','Authorization'])
 
 
 
@@ -3279,6 +4554,11 @@ def chat():
     print("I am inside chat method")
     print("Inside CHAT")
     json_input = request.json
+    
+    print("pppppppppppppppppppppp")
+    print(json_input)
+    print("llllllllllllllllllllll")
+
 
     ip = json_input['ip']
     inp_msg  = json_input['message']
@@ -3295,13 +4575,9 @@ def chat():
     
     sql = """select * from sessions where ip = %s """
     data = (ip,)
-
-    mydb,mycursor = create_sql_conn()
     mycursor.execute(sql,data)
+
     myresult_list = mycursor.fetchall()
-    mycursor.close() 
-    mydb.close()
-    
     #emp_name_dict = dict()
 
     print("Myresult",type(myresult_list),"List")
@@ -3346,7 +4622,6 @@ def chat():
         return_list_of_dicts_2 = return_list_of_dicts_1.replace("'", "\"")
 
         print("\n\n\n\n\n")
-        print("HEllo")
         print(return_list_of_dicts_2) 
         print("\n\n\n\n\n")
          
@@ -3376,8 +4651,8 @@ def chat():
 
 
         print("cust responses acc\n")
-        #print(cust_responses_accept_str)
-        print("\ncust responses acc\n")
+        print(cust_responses_accept_str)
+        print("\ncust responses acc\n\n\n\n\n\n\n\n")
 
         cust_responses = json.loads(cust_responses_accept_str)
         print("here3")
@@ -3477,7 +4752,7 @@ def chat():
         if STATE == "FIRST_WELCOME":
             if "device_id" in json_input: 
                 device_id = json_input['device_id']
-                device_id = device_id.replace("'","")
+                device_id = device_id.replace("'", "")
                 device_id = device_id.replace('"','')
             else:
                 device_id = "DUMMY"
@@ -3614,9 +4889,7 @@ def chat():
                 if is_nickname_response == "yes":
                     STATE = "ASK_NICKNAME"
                 elif is_nickname_response == "no":
-                    STATE = "FIND_SALON"
-
-                    #STATE = "ASK_BIRTHDAY"
+                    STATE = "ASK_BIRTHDAY"
                 update_session_db(ip,STATE,str(return_list_of_dicts),str(return_dict),str(cust_responses))
             else:
                 out_json = failure_msg_fun(return_dict,out_msg,return_list_of_dicts,ip,STATE,cust_responses)
@@ -3649,8 +4922,7 @@ def chat():
                 out_dict = {"type" : "text", "answer": cust_nickname, "message_type": "none","qid": "ask_nickname"}
                 return_list_of_dicts.append(out_dict)
                 return_list_of_dicts[-2]["type"] = "text"
-                STATE = "FIND_SALON"
-                #STATE = "ASK_BIRTHDAY"
+                STATE = "ASK_BIRTHDAY"
                 update_session_db(ip,STATE,str(return_list_of_dicts),str(return_dict),str(cust_responses))
             else:
                 out_json = failure_msg_fun(return_dict,out_msg,return_list_of_dicts,ip,STATE,cust_responses)
@@ -3974,12 +5246,9 @@ def chat():
                 
                 return_list_of_dicts.append(out_dict)
                 return_list_of_dicts[-2]["type"] = "text"
-
                 #STATE = "ASK_PHONE"
-
                 if cust_responses["salon_found"] == "yes":
                     STATE = "CONFIRM_SPECIFIC_SALON"
-                
                 if cust_responses["salon_found"] == "no":
                     STATE = "ASK_PHONE"
                 
@@ -4033,7 +5302,7 @@ def chat():
             if css_response == "2":
                 css_answer = "いいえ"
                 cust_responses["salon_found"] = "no"
-                cust_responses["user_id"] = 0 
+                cust_responses["user_id"] = 102
 
 
             if css_status == 1:
@@ -4049,134 +5318,12 @@ def chat():
                     STATE = "ASK_PHONE"
                 if cust_responses["salon_found"] == "no":
                     STATE = "ASK_PHONE"
-                    #STATE = "ASK_SALON_AGAIN"
 
                 update_session_db(ip,STATE,str(return_list_of_dicts),str(return_dict),str(cust_responses))
             else:
                 out_json = failure_msg_fun(return_dict,out_msg,return_list_of_dicts,ip,STATE,cust_responses)
                 return out_json
         
-        if STATE == "ASK_SALON_AGAIN":
-            out_msg = ask_salon_again_fun()
-
-            STATE = "SALON_AGAIN_ASKED"
-            return_dict["status"] = "success"
-            return_dict["error_msg"] = ""
-            return_dict["chat"] = return_list_of_dicts
-            out_dict = {
-                "type" : "input", 
-                "question": out_msg, 
-                "message_type": "none", 
-                "qid": "ask_specific_salon"
-            }
-            return_list_of_dicts.append(out_dict)
-
-            out_json = json.dumps(return_dict,ensure_ascii= False)
-            update_session_db(ip,STATE,str(return_list_of_dicts),str(return_dict),str(cust_responses))
-            
-            return out_json
-
-        if STATE == "SALON_AGAIN_ASKED":
-            sa_response = inp_msg
-
-            if sa_response == "Majestic Beauty" or sa_response == "マジェスティックビューティー":
-                cust_responses["salon_found"] = "no"
-                cust_responses["user_id"] = 0 
-            else:
-                cust_responses["salon_found"] = "no"
-                cust_responses["user_id"] = 0 
-            # The above code block looks bizarre because currently there's just one salon
-
-            sa_status = 1
-
-            if sa_status == 1:
-                return_dict["status"] = "success"
-                return_dict["error_msg"] = ""
-                return_dict["chat"] = return_list_of_dicts
-                out_dict = {"type" : "text", "answer": sa_response, "message_type": "none","qid": "ask_specific_salon"}
-                
-                return_list_of_dicts.append(out_dict)
-                return_list_of_dicts[-2]["type"] = "text"
-
-                #STATE = "ASK_PHONE"
-
-                #if cust_responses["salon_found"] == "yes":
-                #    STATE = "CONFIRM_SPECIFIC_SALON"
-                
-                if cust_responses["salon_found"] == "no":
-                    STATE = "USE_RECOMMENDED_SALON"
-                     
-                
-                update_session_db(ip,STATE,str(return_list_of_dicts),str(return_dict),str(cust_responses))
-            else:
-                out_json = failure_msg_fun(return_dict,out_msg,return_list_of_dicts,ip,STATE,cust_responses)
-                return out_json
-
-
-        if STATE == "USE_RECOMMENDED_SALON":
-            out_msg,option_list = use_recommended_salon_fun()
-
-            STATE = "USE_RECOMMENDED_SALON_ASKED"
-            return_dict["status"] = "success"
-            return_dict["error_msg"] = ""
-            return_dict["chat"] = return_list_of_dicts
-
-            out_dict = {
-                "type" : "option", 
-                "question": out_msg, 
-                "gallery_list": option_list,
-                "message_type": "none", 
-                "qid": "use_recommended_salon"
-            }
-
-            return_list_of_dicts.append(out_dict)
-
-            out_json = json.dumps(return_dict,ensure_ascii= False)
-            update_session_db(ip,STATE,str(return_list_of_dicts),str(return_dict),str(cust_responses))
-            
-            return out_json
-
-        if STATE == "USE_RECOMMENDED_SALON_ASKED":
-            urs_status = 1 
-            urs_response = inp_msg
-
-
-            if urs_response == "1":
-                urs_answer = "はい"
-                cust_responses["salon_found"] = "yes"
-                cust_responses["user_id"] = 102
-
-            if urs_response == "2":
-                urs_answer = "いいえ"
-                cust_responses["salon_found"] = "no"
-                cust_responses["user_id"] = 0 
-
-
-            if urs_status == 1:
-                return_dict["status"] = "success"
-                return_dict["error_msg"] = ""
-                return_dict["chat"] = return_list_of_dicts
-                
-                out_dict = {
-                    "type" : "text", 
-                    "answer": urs_answer, 
-                    "message_type": "none",
-                    "qid": "use_recommended_salon"
-                }
-                
-                return_list_of_dicts.append(out_dict)
-                return_list_of_dicts[-2]["type"] = "text"
-
-                if cust_responses["salon_found"] == "yes":
-                    STATE = "ASK_PHONE"
-                if cust_responses["salon_found"] == "no":
-                    STATE = "GOOD_BYE_FOR_NOW"
-
-                update_session_db(ip,STATE,str(return_list_of_dicts),str(return_dict),str(cust_responses))
-            else:
-                out_json = failure_msg_fun(return_dict,out_msg,return_list_of_dicts,ip,STATE,cust_responses)
-                return out_json
-
         if STATE == "FIND_SALON":
             out_msg,option_list = find_salon_fun()
 
@@ -4294,12 +5441,7 @@ def chat():
                 return_list_of_dicts[-2]["type"] = "text"
             
                 cust_name = cust_responses["name"]
-                
-                if "birthday" in cust_responses:
-                    cust_birthday = cust_responses["birthday"]
-                else:
-                    cust_birthday = "1990-01-01"
-
+                cust_birthday = cust_responses["birthday"]
                 cust_phone = cust_responses["phone"]
                 
                 if cust_responses["is_nickname"] == "no":
@@ -4311,14 +5453,11 @@ def chat():
                 if "is_daily_horoscope" in cust_responses:
                     if cust_responses["is_daily_horoscope"] == "yes":
                         is_daily_horoscope = 1
-                    else:
-                        is_daily_horoscope = 0
                 else:
                     is_daily_horoscope = 0
-                try:
-                    cust_zodiac_eng = cust_responses["zodiac_eng"]
-                except:
-                    cust_zodiac_eng = "cancer"
+
+                cust_zodiac_eng = cust_responses["zodiac_eng"]
+                
                 
                 device_id = cust_responses["device_id"]
                 device_type = cust_responses["device_type"]
@@ -5299,6 +6438,8 @@ def chat():
             out_json = json.dumps(return_dict,ensure_ascii= False)
             return out_json
 
+
+
         if STATE == "CANCEL_RESERVATION_ASKED":
             cancel_menu_int = inp_msg
 
@@ -5322,29 +6463,16 @@ def chat():
 
             select_sql1 = """select name from services where id = %s"""
             select_tuple1 = (change_serv_id,)
-            
-            mydb,mycursor = create_sql_conn()
             mycursor.execute(select_sql1,select_tuple1)
             myresult_list = mycursor.fetchall()
-            mycursor.close()
-            mydb.close()
-
-
             tuple0 = myresult_list[0]
             change_serv_name1 = tuple0[0]
             change_serv_name = change_serv_name1.decode() ; change_serv_name
 
             select_sql2 = """select name from employees where id = %s"""
             select_tuple2 = (change_emp_id,)
-            
-            
-            mydb,mycursor = create_sql_conn()
             mycursor.execute(select_sql2,select_tuple2)
             myresult_list = mycursor.fetchall()
-            mycursor.close()
-            mydb.close()
-
-
             tuple0 = myresult_list[0]
             change_emp_name1 = tuple0[0]
             print("change_emp_name1")
@@ -5433,29 +6561,16 @@ def chat():
 
             select_sql1 = """select name from services where id = %s"""
             select_tuple1 = (change_serv_id,)
-            
-            
-            mydb,mycursor = create_sql_conn()
             mycursor.execute(select_sql1,select_tuple1)
             myresult_list = mycursor.fetchall()
-            mycursor.close()
-            mydb.close()
-
-
             tuple0 = myresult_list[0]
             change_serv_name1 = tuple0[0]
             change_serv_name = change_serv_name1.decode() ; change_serv_name
 
             select_sql2 = """select name from employees where id = %s"""
             select_tuple2 = (change_emp_id,)
-            
-            mydb,mycursor = create_sql_conn()
             mycursor.execute(select_sql2,select_tuple2)
             myresult_list = mycursor.fetchall()
-            mycursor.close()
-            mydb.close()
-
-
             tuple0 = myresult_list[0]
             change_emp_name1 = tuple0[0]
             change_emp_name = change_emp_name1.decode() ; change_emp_name
@@ -5939,14 +7054,8 @@ def chat():
                     slot = cust_selected_option[2]
                     select_sql = """select name from employees where id = %s"""
                     select_tuple = (sel_emp,)
-                    
-                    mydb,mycursor = create_sql_conn()
                     mycursor.execute(select_sql,select_tuple)
                     myresult_list = mycursor.fetchall()
-                    mycursor.close()
-                    mydb.close()
-
-
                     a1 = myresult_list[0]
                     a2 = a1[0]
                     sel_emp_name = a2.decode() ; sel_emp_name  
@@ -5996,7 +7105,7 @@ def chat():
                 today = datetime.datetime.now()
 
                 next_seven_day_list = [today,]
-                for i in range(1,15):
+                for i in range(1,12):
                     new= today + datetime.timedelta(days=i)
                     next_seven_day_list.append(new)
                 relevant_employee_list = find_employees_for_service(cust_responses["service"],user_id)
@@ -6059,6 +7168,8 @@ def chat():
             else:
                 out_json = failure_msg_fun(return_dict,out_msg,return_list_of_dicts,ip,STATE,cust_responses)
                 return out_json
+
+
 
         if STATE == "ASK_ALT_DATE":
             out_msg,option_list = ask_alt_date_fun(cust_responses)
@@ -6291,9 +7402,9 @@ def chat():
 
 
 if __name__ == '__main__':
-    app.run(debug=True)                                                         # For Dev Server  
-    #context = ('fullchain1.pem','privkey1.pem')                                # For QA and Live Server
-    #app.run(debug=True,host='0.0.0.0',ssl_context=context,port=5001)            # For QA Server 
+    #app.run(debug=True)                                                         # For Dev Server  
+    context = ('fullchain1.pem','privkey1.pem')                                # For QA and Live Server
+    app.run(debug=True,host='0.0.0.0',ssl_context=context,port=5001)            # For QA Server 
     #app.run(debug=True,host='0.0.0.0',ssl_context=context,port=5000)            # For Live Server
 
 
